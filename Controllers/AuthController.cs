@@ -19,16 +19,18 @@ namespace Graduation_Project.Controllers
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IConfiguration configuration;
+        private readonly IProfileService profileService;
 
         public IApplicantServices ApplicantServices { get; }
         public ICompanyServices CompanyServices { get; }
 
-        public AuthController(UserManager<ApplicationUser> userManager,IApplicantServices applicantServices,ICompanyServices companyServices,IConfiguration configuration)
+        public AuthController(UserManager<ApplicationUser> userManager,IApplicantServices applicantServices,ICompanyServices companyServices,IConfiguration configuration,IProfileService profileService)
         {
             this.userManager = userManager;
             ApplicantServices = applicantServices;
             CompanyServices = companyServices;
             this.configuration = configuration;
+            this.profileService = profileService;
         }
         [HttpPost("register/applicant")]
         public async Task<IActionResult> Register([FromBody] ApplicantRegisterDto model)
@@ -47,7 +49,7 @@ namespace Graduation_Project.Controllers
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-           await userManager.AddToRoleAsync(user, "Applicant");
+           await userManager.AddToRoleAsync(user, Roles.Applicant);
 
             Applicant applicant = new Applicant()
             {
@@ -105,8 +107,11 @@ namespace Graduation_Project.Controllers
             if (VerfiyPass)
             {
                 //generate token
+                var (profileId, profileType) = await profileService.GetProfileAsync(user);
+
                 List<Claim> claims = new List<Claim>();
                 claims.Add(new Claim(ClaimTypes.Name, user.Email));
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id));
                 claims.Add(new Claim(ClaimTypes.Email, user.Email));
                 var roles = await userManager.GetRolesAsync(user);
                 foreach (var item in roles)
@@ -114,6 +119,11 @@ namespace Graduation_Project.Controllers
                     claims.Add(new Claim(ClaimTypes.Role, item));
 
                 }
+                if (profileId != null)
+                    claims.Add(new Claim(CustomClaims.ProfileId, profileId));
+
+                if (profileType != null)
+                    claims.Add(new Claim(CustomClaims.ProfileType, profileType));
 
                 claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
                 SymmetricSecurityKey symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]));
@@ -130,7 +140,8 @@ namespace Graduation_Project.Controllers
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo
+                    expiration = token.ValidTo,
+                    userId=user.Id
                 });
             }
             else

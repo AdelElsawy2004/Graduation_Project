@@ -19,15 +19,18 @@ namespace Graduation_Project.Models
         public DbSet<ApplicantSkill> ApplicantSkills { get; set; }
         public DbSet<Experience> Experiences { get; set; }
         public DbSet<JobMetric> JobMetrics { get; set; }
+        public DbSet<Interview> Interviews { get; set; }
+        public DbSet<SavedJobs> SavedJobs { get; set; }
+        public DbSet<ProfileView> ProfileViews { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            builder.Entity<Applicant>()
-       .HasOne(a => a.User)
-       .WithOne(u => u.Applicant)
-       .HasForeignKey<Applicant>(a => a.UserId)
-       .OnDelete(DeleteBehavior.NoAction);
+       //     builder.Entity<Applicant>()
+       //.HasOne(a => a.User)
+       //.WithOne(u => u.Applicant)
+       //.HasForeignKey<Applicant>(a => a.UserId)
+       //.OnDelete(DeleteBehavior.NoAction);
 
             // Company ↔ User (One-to-One)
             builder.Entity<Company>()

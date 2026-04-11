@@ -28,7 +28,10 @@ namespace Graduation_Project
                   .AddEntityFrameworkStores<ApplicationDbContext>()
                   .AddDefaultTokenProviders();
             builder.Services.AddScoped<IApplicantServices, ApplicantServices>();
+            builder.Services.AddScoped<IProfileService, ProfileService>();
             builder.Services.AddScoped<ICompanyServices, ComapnyServices>();
+            builder.Services.AddScoped<IJobPostingService,JobPostingService>();
+            builder.Services.AddScoped<IApplicationServivces, ApplicationServices>();
             builder.Services.AddAuthentication(x =>
             {
                 x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -58,6 +61,7 @@ namespace Graduation_Project
             }
 
             app.UseHttpsRedirection();
+            app.UseAuthentication();
 
             app.UseAuthorization();
             app.MapScalarApiReference();

@@ -7,6 +7,8 @@
         public string Industry { get; set; }
         public string WebsiteURL { get; set; }
         public string HeadquarterAddress { get; set; }
+        public string Location { get; set; }
+        public string LogoUrl { get; set; }
 
         // FK to Identity User
         public string UserId { get; set; }

@@ -1,7 +1,11 @@
-﻿namespace Graduation_Project.Dtos
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Graduation_Project.Dtos
 {
     public class ApplicantRegisterDto
     {
+
+        [EmailAddress]
         public string Email { get; set; }
         public string Password { get; set; }
 

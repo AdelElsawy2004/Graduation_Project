@@ -9,7 +9,7 @@ namespace Graduation_Project.Models
         public DateTime LastLogin { get; set; }
 
         // Relations
-        public Applicant? Applicant { get; set; }
+        //public Applicant? Applicant { get; set; }
         public Company? Company { get; set; }
     }
 }

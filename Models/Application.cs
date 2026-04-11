@@ -7,7 +7,7 @@ namespace Graduation_Project.Models
     {
         [Key]
         public int ApplicationID { get; set; }
-        public string ApplicationStatus { get; set; }
+        public ApplicationStatus ApplicationStatus { get; set; } = ApplicationStatus.Pending;
         public DateTime AppliedDate { get; set; }
         public string CoverLetter { get; set; }
 
@@ -22,4 +22,12 @@ namespace Graduation_Project.Models
         public int? ResumeID { get; set; }
         public Resume? Resume { get; set; }
     }
+    public enum ApplicationStatus
+    {
+        Pending,
+        Reviewed,
+        Accepted,
+        Rejected
+    }
+
 }

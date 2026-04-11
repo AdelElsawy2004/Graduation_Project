@@ -1,5 +1,7 @@
-﻿using Graduation_Project.Models;
+﻿using Graduation_Project.Dtos;
+using Graduation_Project.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace Graduation_Project.Services
 {
@@ -10,6 +12,24 @@ namespace Graduation_Project.Services
         public ApplicantServices(ApplicationDbContext dbContext)
         {
             this.dbContext = dbContext;
+        }
+        public static string GetTimeAgo(DateTime dateTime)
+        {
+            var diff = DateTime.UtcNow - dateTime;
+
+            if (diff.TotalMinutes < 60)
+                return $"{(int)diff.TotalMinutes} minutes ago";
+
+            if (diff.TotalHours < 24)
+                return $"{(int)diff.TotalHours} hours ago";
+
+            if (diff.TotalDays < 7)
+                return $"{(int)diff.TotalDays} days ago";
+
+            if (diff.TotalDays < 30)
+                return $"{(int)(diff.TotalDays / 7)} weeks ago";
+
+            return $"{(int)(diff.TotalDays / 30)} months ago";
         }
         public async Task<Applicant> CreateApplicantAsync(Applicant applicant)
         {
@@ -30,20 +50,84 @@ namespace Graduation_Project.Services
                 return true;
             }
         }
-
-        public Task<List<Applicant>> GetAllApplicantAsync()
+          public async Task<Applicant> GetApplicantByIdAsync(int id)
         {
-            throw new NotImplementedException();
+          var applicant=await dbContext.Applicants.FirstOrDefaultAsync(x => x.ApplicantID == id);
+            return (applicant==null)? null:applicant;
         }
 
-        public async Task<Applicant> GetApplicantByIdAsync(int id)
+        public async Task<List<Applicant>> GetAllApplicantAsync()
         {
-            var foundedApplicant=await dbContext.Applicants.FirstOrDefaultAsync(x=>x.ApplicantID==id);
-            return foundedApplicant;
-
+            return await dbContext.Applicants.ToListAsync();
         }
 
-        public async Task<bool> UpdateApplicantAsync(int id, Applicant applicant)
+        public async Task<ApplicantDashboardResponseDto> GetDashboardAsync(int applicantId)
+        {
+            var now = DateTime.UtcNow;
+            var startOfYear = new DateTime(now.Year, 1, 1);
+
+        
+            var appliedCount = await dbContext.Applications
+                .CountAsync(a => a.ApplicantID == applicantId);
+
+            var savedCount = await dbContext.SavedJobs
+                .CountAsync(s => s.ApplicantId == applicantId);
+
+            var upcomingInterviews = await dbContext.Interviews
+                .CountAsync(i => i.ApplicantId == applicantId && i.ScheduledAt >= now);
+
+            var profileViews = await dbContext.ProfileViews
+                .CountAsync(p => p.ApplicantId == applicantId);
+
+         
+            var applications = await dbContext.Applications
+                .Where(a => a.ApplicantID == applicantId && a.AppliedDate >= startOfYear)
+                .GroupBy(a => a.AppliedDate.Month)
+                .Select(g => new { Month = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var interviews = await dbContext.Interviews
+                .Where(i => i.ApplicantId == applicantId && i.ScheduledAt >= startOfYear)
+                .GroupBy(i => i.ScheduledAt.Month)
+                .Select(g => new { Month = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var monthlyStats = Enumerable.Range(1, 6).Select(m => new MonthlyStatDto
+            {
+                Month = new DateTime(now.Year, m, 1).ToString("MMM"),
+                ApplicationsCount = applications.FirstOrDefault(a => a.Month == m)?.Count ?? 0,
+                InterviewsCount = interviews.FirstOrDefault(i => i.Month == m)?.Count ?? 0
+            }).ToList();
+
+            var recentApps = await dbContext.Applications
+                .Where(a => a.ApplicantID == applicantId)
+                .OrderByDescending(a => a.AppliedDate)
+                .Take(5)
+                .Select(a => new RecentApplicationDto
+                {
+                    Id = a.ApplicationID,
+                    CompanyName = a.JobPosting.Company.Name,
+                    CompanyLogoUrl = a.JobPosting.Company.LogoUrl,
+                    JobTitle = a.JobPosting.Title,
+                    AppliedAt = a.AppliedDate
+                })
+                .ToListAsync();
+
+            return new ApplicantDashboardResponseDto
+            {
+                Statistics = new StatisticsDto
+                {
+                    AppliedJobsCount = appliedCount,
+                    SavedJobsCount = savedCount,
+                    UpcomingInterviewsCount = upcomingInterviews,
+                    ProfileViewsCount = profileViews
+                },
+                MonthlyStats = monthlyStats,
+                RecentApplications = recentApps
+            };
+        }
+
+        public async Task<bool> UpdateApplicantAsync(int id, ApplicantDto applicant)
         {
             var foundedApplicant =await this.GetApplicantByIdAsync(id);
             if (foundedApplicant == null)
@@ -57,5 +141,32 @@ namespace Graduation_Project.Services
             return true;
 
         }
+        public async Task<List<SavedJobsResponseDto>> GetSavedsAsync(int id)
+        {
+            var applicant =await GetApplicantByIdAsync(id);
+            if (applicant == null) return null;
+            var savedJobs = await dbContext.SavedJobs
+       .Where(x => x.ApplicantId == id)
+       .Select(item => new SavedJobsResponseDto
+       {
+           JobTitle = item.JobPosting.Title,
+           JobDescription = item.JobPosting.Description,
+           JobRequirement = item.JobPosting.Requirements,
+           SavedAt = item.SavedAt,
+           CompanyLogoUrl = item.JobPosting.Company.LogoUrl,
+           CompanyLocation = item.JobPosting.Company.Location,
+           CompanyName = item.JobPosting.Company.Name,
+           JobType = item.JobPosting.JobType.ToString(),
+           SalaryRange = item.JobPosting.SalaryRange
+       })
+       .ToListAsync();
+
+            foreach (var job in savedJobs)
+            {
+                job.TimeAgo = GetTimeAgo(job.SavedAt);
+            }
+            return savedJobs;
+        }
+
     }
 }
